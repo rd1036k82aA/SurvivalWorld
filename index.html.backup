@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Survival World</title>
+</head>
+
+<body>
+
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div>❤️ 100</div>
+    <div>🍖 100</div>
+    <div>💧 100</div>
+  </div>
+
+  <div id="inventario">
+    <div id="madeira">🪵 0</div>
+    <div id="pedra">🪨 0</div>
+    <div id="machado">🪓 0</div>
+    <div id="picareta">⛏️ 0</div>
+  </div>
+
+  <button id="abrirCrafting">
+    🔨 CRAFT
+  </button>
+
+  <button id="coletar">
+    🖐️ COLETAR
+  </button>
+
+  <div id="crafting" class="fechado">
+
+    <div class="crafting-caixa">
+
+      <div class="crafting-topo">
+        <h2>🔨 Crafting</h2>
+
+        <button id="fecharCrafting">
+          ✕
+        </button>
+      </div>
+
+      <div class="item-craft">
+
+        <div class="item-info">
+          <strong>🪓 Machado</strong>
+
+          <span>
+            5 🪵 + 2 🪨
+          </span>
+        </div>
+
+        <button
+          class="botao-craft"
+          data-item="machado"
+        >
+          CRIAR
+        </button>
+
+      </div>
+
+      <div class="item-craft">
+
+        <div class="item-info">
+          <strong>⛏️ Picareta</strong>
+
+          <span>
+            3 🪵 + 5 🪨
+          </span>
+        </div>
+
+        <button
+          class="botao-craft"
+          data-item="picareta"
+        >
+          CRIAR
+        </button>
+
+      </div>
+
+      <div class="item-craft">
+
+        <div class="item-info">
+          <strong>🔥 Fogueira</strong>
+
+          <span>
+            10 🪵 + 3 🪨
+          </span>
+        </div>
+
+        <button
+          class="botao-craft"
+          data-item="fogueira"
+        >
+          CRIAR
+        </button>
+
+      </div>
+
+      <p id="mensagemCraft"></p>
+
+    </div>
+
+  </div>
+
+  <div id="controles">
+
+    <button id="cima">
+      ▲
+    </button>
+
+    <div>
+
+      <button id="esquerda">
+        ◀
+      </button>
+
+      <button id="baixo">
+        ▼
+      </button>
+
+      <button id="direita">
+        ▶
+      </button>
+
+    </div>
+
+  </div>
+
+  <script
+    type="module"
+    src="/src/main.js"
+  ></script>
+
+</body>
+</html>

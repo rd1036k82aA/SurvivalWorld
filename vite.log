@@ -1,0 +1,9 @@
+
+> survivalworld@1.0.0 dev
+> vite --host 0.0.0.0 --port 8080
+
+
+  VITE v8.3.1  ready in 2195 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://100.107.127.70:8080/  sipa_eth0

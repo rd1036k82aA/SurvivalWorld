@@ -1,0 +1,636 @@
+import "./style.css";
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function ajustarTela() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", ajustarTela);
+ajustarTela();
+
+const mundo = {
+  largura: 4000,
+  altura: 4000
+};
+
+const jogador = {
+  x: 2000,
+  y: 2000,
+  tamanho: 28,
+  velocidade: 4
+};
+
+const recursos = {
+  madeira: 0,
+  pedra: 0,
+  machado: 0,
+  picareta: 0,
+  fogueira: 0
+};
+
+const teclas = {
+  cima: false,
+  baixo: false,
+  esquerda: false,
+  direita: false
+};
+
+const objetos = [];
+
+function aleatorio(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+for (let i = 0; i < 180; i++) {
+  objetos.push({
+    tipo: "arvore",
+    x: aleatorio(100, mundo.largura - 100),
+    y: aleatorio(100, mundo.altura - 100),
+    tamanho: aleatorio(28, 45),
+    coletado: false
+  });
+}
+
+for (let i = 0; i < 100; i++) {
+  objetos.push({
+    tipo: "pedra",
+    x: aleatorio(100, mundo.largura - 100),
+    y: aleatorio(100, mundo.altura - 100),
+    tamanho: aleatorio(18, 30),
+    coletado: false
+  });
+}
+
+function distancia(a, b) {
+  return Math.sqrt(
+    (a.x - b.x) ** 2 +
+    (a.y - b.y) ** 2
+  );
+}
+
+function recursoPerto() {
+  let maisPerto = null;
+  let menorDistancia = Infinity;
+
+  for (const objeto of objetos) {
+    if (objeto.coletado) continue;
+
+    const d = distancia(jogador, objeto);
+
+    if (d < menorDistancia) {
+      menorDistancia = d;
+      maisPerto = objeto;
+    }
+  }
+
+  if (menorDistancia <= 75) {
+    return maisPerto;
+  }
+
+  return null;
+}
+
+function coletar() {
+  const objeto = recursoPerto();
+
+  if (!objeto) {
+    return;
+  }
+
+  objeto.coletado = true;
+
+  if (objeto.tipo === "arvore") {
+    recursos.madeira += recursos.machado > 0 ? 6 : 3;
+  }
+
+  if (objeto.tipo === "pedra") {
+    recursos.pedra += recursos.picareta > 0 ? 4 : 2;
+  }
+
+  atualizarInventario();
+}
+
+function atualizarInventario() {
+  document.getElementById("madeira").textContent =
+    `🪵 ${recursos.madeira}`;
+
+  document.getElementById("pedra").textContent =
+    `🪨 ${recursos.pedra}`;
+
+  document.getElementById("machado").textContent =
+    `🪓 ${recursos.machado}`;
+
+  document.getElementById("picareta").textContent =
+    `⛏️ ${recursos.picareta}`;
+}
+
+function mostrarMensagem(texto) {
+  const elemento =
+    document.getElementById("mensagemCraft");
+
+  elemento.textContent = texto;
+
+  setTimeout(() => {
+    elemento.textContent = "";
+  }, 2000);
+}
+
+function criarItem(item) {
+
+  if (item === "machado") {
+
+    if (
+      recursos.madeira < 5 ||
+      recursos.pedra < 2
+    ) {
+      mostrarMensagem(
+        "❌ Recursos insuficientes."
+      );
+      return;
+    }
+
+    recursos.madeira -= 5;
+    recursos.pedra -= 2;
+    recursos.machado++;
+
+    mostrarMensagem(
+      "🪓 Machado criado!"
+    );
+  }
+
+  if (item === "picareta") {
+
+    if (
+      recursos.madeira < 3 ||
+      recursos.pedra < 5
+    ) {
+      mostrarMensagem(
+        "❌ Recursos insuficientes."
+      );
+      return;
+    }
+
+    recursos.madeira -= 3;
+    recursos.pedra -= 5;
+    recursos.picareta++;
+
+    mostrarMensagem(
+      "⛏️ Picareta criada!"
+    );
+  }
+
+  if (item === "fogueira") {
+
+    if (
+      recursos.madeira < 10 ||
+      recursos.pedra < 3
+    ) {
+      mostrarMensagem(
+        "❌ Recursos insuficientes."
+      );
+      return;
+    }
+
+    recursos.madeira -= 10;
+    recursos.pedra -= 3;
+    recursos.fogueira++;
+
+    mostrarMensagem(
+      "🔥 Fogueira criada!"
+    );
+  }
+
+  atualizarInventario();
+}
+
+function desenharMundo(cameraX, cameraY) {
+
+  ctx.fillStyle = "#5c9b4b";
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  const tamanhoGrade = 80;
+
+  ctx.strokeStyle =
+    "rgba(255,255,255,0.025)";
+
+  for (
+    let x = -cameraX % tamanhoGrade;
+    x < canvas.width;
+    x += tamanhoGrade
+  ) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+
+  for (
+    let y = -cameraY % tamanhoGrade;
+    y < canvas.height;
+    y += tamanhoGrade
+  ) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  for (const objeto of objetos) {
+
+    if (objeto.coletado) continue;
+
+    const x = objeto.x - cameraX;
+    const y = objeto.y - cameraY;
+
+    if (
+      x < -100 ||
+      x > canvas.width + 100 ||
+      y < -100 ||
+      y > canvas.height + 100
+    ) {
+      continue;
+    }
+
+    if (objeto.tipo === "arvore") {
+
+      ctx.fillStyle = "#68452b";
+
+      ctx.fillRect(
+        x - 7,
+        y + 5,
+        14,
+        objeto.tamanho
+      );
+
+      ctx.fillStyle = "#1d642e";
+
+      ctx.beginPath();
+
+      ctx.arc(
+        x,
+        y,
+        objeto.tamanho,
+        0,
+        Math.PI * 2
+      );
+
+      ctx.fill();
+
+      ctx.fillStyle = "#2d8038";
+
+      ctx.beginPath();
+
+      ctx.arc(
+        x - 10,
+        y - 10,
+        objeto.tamanho * 0.65,
+        0,
+        Math.PI * 2
+      );
+
+      ctx.fill();
+    }
+
+    if (objeto.tipo === "pedra") {
+
+      ctx.fillStyle = "#707070";
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        x - objeto.tamanho,
+        y + 8
+      );
+
+      ctx.lineTo(
+        x - 8,
+        y - objeto.tamanho
+      );
+
+      ctx.lineTo(
+        x + objeto.tamanho,
+        y - 5
+      );
+
+      ctx.lineTo(
+        x + 10,
+        y + objeto.tamanho
+      );
+
+      ctx.closePath();
+
+      ctx.fill();
+    }
+  }
+}
+
+function desenharJogador(cameraX, cameraY) {
+
+  const x = jogador.x - cameraX;
+  const y = jogador.y - cameraY;
+
+  ctx.fillStyle = "#171717";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y - 18,
+    10,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  ctx.fillStyle = "#3b82f6";
+
+  ctx.fillRect(
+    x - 12,
+    y - 8,
+    24,
+    30
+  );
+
+  ctx.fillStyle = "#222";
+
+  ctx.fillRect(
+    x - 10,
+    y + 22,
+    7,
+    13
+  );
+
+  ctx.fillRect(
+    x + 3,
+    y + 22,
+    7,
+    13
+  );
+}
+
+function atualizar() {
+
+  let dx = 0;
+  let dy = 0;
+
+  if (teclas.cima) dy -= 1;
+  if (teclas.baixo) dy += 1;
+  if (teclas.esquerda) dx -= 1;
+  if (teclas.direita) dx += 1;
+
+  if (dx !== 0 || dy !== 0) {
+
+    const distanciaMovimento =
+      Math.sqrt(dx * dx + dy * dy);
+
+    dx /= distanciaMovimento;
+    dy /= distanciaMovimento;
+
+    jogador.x +=
+      dx * jogador.velocidade;
+
+    jogador.y +=
+      dy * jogador.velocidade;
+  }
+
+  jogador.x = Math.max(
+    jogador.tamanho,
+    Math.min(
+      mundo.largura - jogador.tamanho,
+      jogador.x
+    )
+  );
+
+  jogador.y = Math.max(
+    jogador.tamanho,
+    Math.min(
+      mundo.altura - jogador.tamanho,
+      jogador.y
+    )
+  );
+}
+
+function desenhar() {
+
+  const cameraX =
+    jogador.x - canvas.width / 2;
+
+  const cameraY =
+    jogador.y - canvas.height / 2;
+
+  desenharMundo(
+    cameraX,
+    cameraY
+  );
+
+  desenharJogador(
+    cameraX,
+    cameraY
+  );
+
+  requestAnimationFrame(desenhar);
+}
+
+function configurarBotao(
+  id,
+  direcao
+) {
+
+  const botao =
+    document.getElementById(id);
+
+  const pressionar = (e) => {
+    e.preventDefault();
+    teclas[direcao] = true;
+  };
+
+  const soltar = (e) => {
+    e.preventDefault();
+    teclas[direcao] = false;
+  };
+
+  botao.addEventListener(
+    "touchstart",
+    pressionar
+  );
+
+  botao.addEventListener(
+    "touchend",
+    soltar
+  );
+
+  botao.addEventListener(
+    "touchcancel",
+    soltar
+  );
+
+  botao.addEventListener(
+    "mousedown",
+    pressionar
+  );
+
+  botao.addEventListener(
+    "mouseup",
+    soltar
+  );
+
+  botao.addEventListener(
+    "mouseleave",
+    soltar
+  );
+}
+
+configurarBotao(
+  "cima",
+  "cima"
+);
+
+configurarBotao(
+  "baixo",
+  "baixo"
+);
+
+configurarBotao(
+  "esquerda",
+  "esquerda"
+);
+
+configurarBotao(
+  "direita",
+  "direita"
+);
+
+document
+  .getElementById("coletar")
+  .addEventListener(
+    "click",
+    coletar
+  );
+
+document
+  .getElementById("abrirCrafting")
+  .addEventListener(
+    "click",
+    () => {
+      document
+        .getElementById("crafting")
+        .classList.remove("fechado");
+    }
+  );
+
+document
+  .getElementById("fecharCrafting")
+  .addEventListener(
+    "click",
+    () => {
+      document
+        .getElementById("crafting")
+        .classList.add("fechado");
+    }
+  );
+
+document
+  .querySelectorAll(".botao-craft")
+  .forEach((botao) => {
+
+    botao.addEventListener(
+      "click",
+      () => {
+        criarItem(
+          botao.dataset.item
+        );
+      }
+    );
+
+  });
+
+window.addEventListener(
+  "keydown",
+  (e) => {
+
+    if (
+      e.key === "w" ||
+      e.key === "ArrowUp"
+    ) {
+      teclas.cima = true;
+    }
+
+    if (
+      e.key === "s" ||
+      e.key === "ArrowDown"
+    ) {
+      teclas.baixo = true;
+    }
+
+    if (
+      e.key === "a" ||
+      e.key === "ArrowLeft"
+    ) {
+      teclas.esquerda = true;
+    }
+
+    if (
+      e.key === "d" ||
+      e.key === "ArrowRight"
+    ) {
+      teclas.direita = true;
+    }
+
+    if (e.key === "e") {
+      coletar();
+    }
+  }
+);
+
+window.addEventListener(
+  "keyup",
+  (e) => {
+
+    if (
+      e.key === "w" ||
+      e.key === "ArrowUp"
+    ) {
+      teclas.cima = false;
+    }
+
+    if (
+      e.key === "s" ||
+      e.key === "ArrowDown"
+    ) {
+      teclas.baixo = false;
+    }
+
+    if (
+      e.key === "a" ||
+      e.key === "ArrowLeft"
+    ) {
+      teclas.esquerda = false;
+    }
+
+    if (
+      e.key === "d" ||
+      e.key === "ArrowRight"
+    ) {
+      teclas.direita = false;
+    }
+  }
+);
+
+atualizarInventario();
+
+setInterval(
+  atualizar,
+  1000 / 60
+);
+
+desenhar();

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SurvivalWorld</string>
+    <string name="title_activity_main">SurvivalWorld</string>
+    <string name="package_name">com.survivalworld.game</string>
+    <string name="custom_url_scheme">com.survivalworld.game</string>
+</resources>

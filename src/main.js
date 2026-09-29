@@ -1,0 +1,636 @@
+import './style.css';
+
+const canvas = document.querySelector('#game');
+const ctx = canvas.getContext('2d');
+
+const world = {
+  width: 2400,
+  height: 1800,
+};
+
+const player = {
+  x: 1200,
+  y: 900,
+  speed: 4,
+};
+
+const inventario = {
+  madeira: 0,
+  pedra: 0,
+};
+
+let recursoAlvo = null;
+
+const trees = [
+  [250,250],[500,380],[760,180],[1050,300],[1450,230],
+  [1800,320],[350,850],[650,1100],
+  [950,1350],[1350,1250],[1700,1050],
+  [300,1500],[600,1450]
+];
+
+const rocks = [
+  [400,600],[850,500],[1300,420],[1750,500],
+  [500,1250],[1100,1100],[1550,1450]
+];
+
+const flowers = [];
+for (let i = 0; i < 90; i++) {
+  flowers.push([
+    80 + Math.random() * 2240,
+    80 + Math.random() * 1640
+  ]);
+}
+
+function resize() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+addEventListener('resize', resize);
+resize();
+
+const keys = {};
+
+const actionButton = document.querySelector('#action-button');
+
+actionButton.addEventListener('touchstart', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  coletarRecurso();
+}, { passive: false });
+
+actionButton.addEventListener('click', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  coletarRecurso();
+});
+
+const joystick = document.querySelector('#joystick');
+const joystickKnob = document.querySelector('#joystick-knob');
+
+let joystickX = 0;
+let joystickY = 0;
+let joystickAtivo = false;
+
+function atualizarJoystick(clientX, clientY) {
+  const rect = joystick.getBoundingClientRect();
+
+  const centroX = rect.left + rect.width / 2;
+  const centroY = rect.top + rect.height / 2;
+
+  let dx = clientX - centroX;
+  let dy = clientY - centroY;
+
+  const distancia = Math.hypot(dx, dy);
+  const maximo = rect.width / 2 - 28;
+
+  if (distancia > maximo) {
+    dx = (dx / distancia) * maximo;
+    dy = (dy / distancia) * maximo;
+  }
+
+  joystickX = dx / maximo;
+  joystickY = dy / maximo;
+
+  joystickKnob.style.transform =
+    `translate(${dx}px, ${dy}px)`;
+}
+
+function pararJoystick() {
+  joystickX = 0;
+  joystickY = 0;
+  joystickAtivo = false;
+
+  joystickKnob.style.transform = 'translate(0px, 0px)';
+}
+
+joystick.addEventListener('touchstart', e => {
+  e.preventDefault();
+  joystickAtivo = true;
+
+  const toque = e.touches[0];
+
+  atualizarJoystick(
+    toque.clientX,
+    toque.clientY
+  );
+}, { passive: false });
+
+joystick.addEventListener('touchmove', e => {
+  e.preventDefault();
+
+  if (!joystickAtivo) return;
+
+  const toque = e.touches[0];
+
+  atualizarJoystick(
+    toque.clientX,
+    toque.clientY
+  );
+}, { passive: false });
+
+joystick.addEventListener('touchend', e => {
+  e.preventDefault();
+  pararJoystick();
+}, { passive: false });
+
+joystick.addEventListener('touchcancel', pararJoystick);
+
+addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+});
+
+addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+function update() {
+  if (keys.w || keys.arrowup) player.y -= player.speed;
+  if (keys.s || keys.arrowdown) player.y += player.speed;
+  if (keys.a || keys.arrowleft) player.x -= player.speed;
+  if (keys.d || keys.arrowright) player.x += player.speed;
+
+  if (joystickAtivo) {
+    player.x += joystickX * player.speed;
+    player.y += joystickY * player.speed;
+  }
+
+  player.x = Math.max(40, Math.min(world.width - 40, player.x));
+  player.y = Math.max(40, Math.min(world.height - 40, player.y));
+}
+
+function camera() {
+  return {
+    x: Math.max(
+      0,
+      Math.min(
+        world.width - canvas.width,
+        player.x - canvas.width / 2
+      )
+    ),
+    y: Math.max(
+      0,
+      Math.min(
+        world.height - canvas.height,
+        player.y - canvas.height / 2
+      )
+    )
+  };
+}
+
+function drawGround(cam) {
+  // Fundo do mundo
+  ctx.fillStyle = '#4f8f3d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grama presa às coordenadas do mundo.
+  // Assim a textura não "escorrega" quando a câmera anda.
+  const tamanho = 35;
+
+  const inicioX = Math.floor(cam.x / tamanho) * tamanho;
+  const inicioY = Math.floor(cam.y / tamanho) * tamanho;
+
+  for (let wx = inicioX; wx < cam.x + canvas.width + tamanho; wx += tamanho) {
+    for (let wy = inicioY; wy < cam.y + canvas.height + tamanho; wy += tamanho) {
+
+      const x = wx - cam.x;
+      const y = wy - cam.y;
+
+      const n =
+        Math.sin(wx * 0.07) *
+        Math.cos(wy * 0.05);
+
+      ctx.fillStyle = n > 0 ? '#5b9b43' : '#4a8538';
+      ctx.fillRect(x, y, 24, 24);
+    }
+  }
+
+  // Caminho fixo no mundo
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+
+  ctx.fillStyle = '#b89562';
+
+  ctx.beginPath();
+  ctx.moveTo(0, 1320);
+
+  ctx.quadraticCurveTo(
+    650,
+    1000,
+    1250,
+    1350
+  );
+
+  ctx.quadraticCurveTo(
+    1750,
+    1550,
+    2400,
+    1400
+  );
+
+  ctx.lineTo(2400, 1800);
+  ctx.lineTo(0, 1800);
+  ctx.closePath();
+
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawWater(cam) {
+  // Água fixa no mundo.
+  // Ela fica no lado direito do mapa e não acompanha o jogador.
+
+  const waterX = 1950;
+
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+
+  ctx.fillStyle = '#218ac0';
+
+  ctx.beginPath();
+
+  ctx.moveTo(waterX, 0);
+  ctx.lineTo(world.width, 0);
+  ctx.lineTo(world.width, world.height);
+  ctx.lineTo(waterX, world.height);
+
+  ctx.quadraticCurveTo(
+    waterX - 100,
+    1300,
+    waterX,
+    950
+  );
+
+  ctx.quadraticCurveTo(
+    waterX + 100,
+    500,
+    waterX,
+    0
+  );
+
+  ctx.closePath();
+  ctx.fill();
+
+  // Ondas da água
+  ctx.strokeStyle = '#62c8e8';
+  ctx.lineWidth = 4;
+
+  for (let y = 80; y < world.height; y += 90) {
+    ctx.beginPath();
+
+    ctx.moveTo(waterX + 30, y);
+
+    ctx.quadraticCurveTo(
+      waterX + 120,
+      y - 12,
+      waterX + 210,
+      y
+    );
+
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawTree(x, y, cam) {
+  x -= cam.x;
+  y -= cam.y;
+
+  if (x < -100 || x > canvas.width + 100 ||
+      y < -150 || y > canvas.height + 150) return;
+
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,.22)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 45, 55, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // tronco
+  ctx.fillStyle = '#704126';
+  ctx.fillRect(x - 15, y - 10, 30, 65);
+
+  ctx.fillStyle = '#925633';
+  ctx.fillRect(x - 7, y - 10, 9, 65);
+
+  // copa
+  const leaves = [
+    [-35,-30,42],
+    [30,-25,45],
+    [0,-65,52],
+    [-5,-5,48],
+    [45,5,32],
+    [-48,5,34]
+  ];
+
+  for (const [dx,dy,r] of leaves) {
+    ctx.fillStyle = '#225f32';
+    ctx.beginPath();
+    ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#3f8c3d';
+    ctx.beginPath();
+    ctx.arc(x + dx - 8, y + dy - 8, r * .72, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#69ad43';
+    ctx.beginPath();
+    ctx.arc(x + dx - 15, y + dy - 15, r * .32, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawRock(x, y, cam) {
+  x -= cam.x;
+  y -= cam.y;
+
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 18, 35, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#777b78';
+  ctx.beginPath();
+  ctx.moveTo(x - 35,y + 12);
+  ctx.lineTo(x - 20,y - 20);
+  ctx.lineTo(x + 8,y - 30);
+  ctx.lineTo(x + 38,y - 5);
+  ctx.lineTo(x + 25,y + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#a9aaa2';
+  ctx.beginPath();
+  ctx.moveTo(x - 20,y - 20);
+  ctx.lineTo(x + 8,y - 30);
+  ctx.lineTo(x + 18,y - 8);
+  ctx.lineTo(x - 8,y + 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawFlower(x, y, cam) {
+  x -= cam.x;
+  y -= cam.y;
+
+  ctx.strokeStyle = '#2d652e';
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x,y+10);
+  ctx.stroke();
+
+  ctx.fillStyle = '#f5f1d0';
+  ctx.beginPath();
+  ctx.arc(x-3,y,3,0,Math.PI*2);
+  ctx.arc(x+3,y,3,0,Math.PI*2);
+  ctx.arc(x,y-3,3,0,Math.PI*2);
+  ctx.arc(x,y+3,3,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#e4b43e';
+  ctx.beginPath();
+  ctx.arc(x,y,2,0,Math.PI*2);
+  ctx.fill();
+}
+
+function coletarRecurso() {
+  let menorDistancia = 90;
+  let encontrado = null;
+  let tipo = null;
+
+  for (let i = 0; i < trees.length; i++) {
+    const distancia = Math.hypot(
+      player.x - trees[i][0],
+      player.y - trees[i][1]
+    );
+
+    if (distancia < menorDistancia) {
+      menorDistancia = distancia;
+      encontrado = i;
+      tipo = 'madeira';
+    }
+  }
+
+  for (let i = 0; i < rocks.length; i++) {
+    const distancia = Math.hypot(
+      player.x - rocks[i][0],
+      player.y - rocks[i][1]
+    );
+
+    if (distancia < menorDistancia) {
+      menorDistancia = distancia;
+      encontrado = i;
+      tipo = 'pedra';
+    }
+  }
+
+  if (encontrado === null) {
+    recursoAlvo = null;
+    return;
+  }
+
+  recursoAlvo = { tipo, indice: encontrado };
+
+  if (tipo === 'madeira') {
+    inventario.madeira += 1;
+    trees.splice(encontrado, 1);
+  } else {
+    inventario.pedra += 1;
+    rocks.splice(encontrado, 1);
+  }
+
+  recursoAlvo = null;
+}
+
+function drawPlayer(cam) {
+  const x = player.x - cam.x;
+  const y = player.y - cam.y;
+
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 25, 25, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // pernas
+  ctx.fillStyle = '#293b63';
+  ctx.fillRect(x - 13, y + 5, 10, 25);
+  ctx.fillRect(x + 3, y + 5, 10, 25);
+
+  // corpo
+  ctx.fillStyle = '#2577a8';
+  ctx.fillRect(x - 20, y - 35, 40, 43);
+
+  // mochila
+  ctx.fillStyle = '#70462b';
+  ctx.fillRect(x - 25, y - 28, 9, 35);
+
+  // cabeça
+  ctx.fillStyle = '#e0a274';
+  ctx.beginPath();
+  ctx.arc(x, y - 55, 21, 0, Math.PI * 2);
+  ctx.fill();
+
+  // cabelo
+  ctx.fillStyle = '#38251e';
+  ctx.beginPath();
+  ctx.arc(x, y - 64, 22, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillRect(x - 20, y - 64, 40, 10);
+
+  // olho
+  ctx.fillStyle = '#171717';
+  ctx.fillRect(x + 8, y - 55, 4, 4);
+
+  // machado
+  ctx.strokeStyle = '#70462c';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(x + 20, y - 5);
+  ctx.lineTo(x + 42, y - 30);
+  ctx.stroke();
+
+  ctx.fillStyle = '#b9c0c5';
+  ctx.beginPath();
+  ctx.moveTo(x + 34,y - 38);
+  ctx.lineTo(x + 51,y - 32);
+  ctx.lineTo(x + 43,y - 18);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawColeta() {
+  const largura = 260;
+  const altura = 75;
+
+  const x = canvas.width - largura - 20;
+  const y = canvas.height - altura - 85;
+
+  ctx.fillStyle = 'rgba(20,30,25,.94)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, largura, altura, 14);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.textAlign = 'center';
+
+  ctx.fillText(
+    '🪓 COLETAR',
+    x + largura / 2,
+    y + 47
+  );
+
+  ctx.textAlign = 'left';
+}
+
+function processarToqueColeta(clientX, clientY) {
+  const largura = 260;
+  const altura = 75;
+
+  const x = canvas.width - largura - 20;
+  const y = canvas.height - altura - 85;
+
+  if (
+    clientX >= x &&
+    clientX <= x + largura &&
+    clientY >= y &&
+    clientY <= y + altura
+  ) {
+    coletarRecurso();
+    return true;
+  }
+
+  return false;
+}
+
+canvas.addEventListener('touchend', e => {
+  if (!e.changedTouches.length) return;
+
+  const toque = e.changedTouches[0];
+
+  if (processarToqueColeta(toque.clientX, toque.clientY)) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('click', e => {
+  processarToqueColeta(e.clientX, e.clientY);
+});
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(15,25,20,.82)';
+  ctx.fillRect(18,18,210,105);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('SOBREVIVÊNCIA', 32, 43);
+
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(
+    `🪵 ${inventario.madeira}   🪨 ${inventario.pedra}`,
+    32,
+    135
+  );
+
+  ctx.fillStyle = 'rgba(15,25,20,.88)';
+  ctx.fillRect(18, 140, 210, 48);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(
+    `🪵 Madeira: ${inventario.madeira}`,
+    30,
+    160
+  );
+  ctx.fillText(
+    `🪨 Pedra: ${inventario.pedra}`,
+    30,
+    180
+  );
+
+  const bars = [
+    ['❤️', '#d94141', 100],
+    ['🍖', '#d98a41', 82],
+    ['💧', '#3da9df', 90]
+  ];
+
+  bars.forEach((b,i) => {
+    const y = 58 + i * 20;
+
+    ctx.fillStyle = '#333';
+    ctx.fillRect(55,y,145,12);
+
+    ctx.fillStyle = b[1];
+    ctx.fillRect(55,y,145 * b[2] / 100,12);
+
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(b[0], 33, y + 11);
+  });
+}
+
+function draw() {
+  update();
+
+  const cam = camera();
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawGround(cam);
+  drawWater(cam);
+
+  flowers.forEach(f => drawFlower(f[0],f[1],cam));
+  rocks.forEach(r => drawRock(r[0],r[1],cam));
+  trees.forEach(t => drawTree(t[0],t[1],cam));
+
+  drawPlayer(cam);
+  drawHUD();
+  drawColeta();
+
+  requestAnimationFrame(draw);
+}
+
+draw();
