@@ -1,7 +1,8 @@
 package com.survivalworld.game;
 
 import android.os.Bundle;
-import android.util.Log;
+import android.graphics.Color;
+import android.widget.TextView;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -11,7 +12,13 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Log.d("SurvivalWorld", "MainActivity iniciou");
-        Log.d("SurvivalWorld", "Capacitor Bridge iniciado");
+        TextView teste = new TextView(this);
+        teste.setText("SURVIVALWORLD\n\nANDROID INICIOU");
+        teste.setTextSize(28);
+        teste.setTextColor(Color.WHITE);
+        teste.setGravity(17);
+        teste.setBackgroundColor(Color.rgb(17, 17, 17));
+
+        setContentView(teste);
     }
 }
