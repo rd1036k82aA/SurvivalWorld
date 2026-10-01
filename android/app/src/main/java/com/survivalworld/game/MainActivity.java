@@ -14,7 +14,7 @@ public class MainActivity extends BridgeActivity {
 
         WebView.setWebContentsDebuggingEnabled(true);
 
-        WebView webView = findViewById(com.getcapacitor.R.id.webview);
+        WebView webView = findViewById(com.survivalworld.game.R.id.webview);
 
         if (webView == null) {
             Toast.makeText(
