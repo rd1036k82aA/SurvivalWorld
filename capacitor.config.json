@@ -1,5 +1,8 @@
 {
   "appId": "com.survivalworld.game",
   "appName": "SurvivalWorld",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http"
+  }
 }
